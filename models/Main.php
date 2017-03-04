@@ -1,30 +1,12 @@
 <?php
 
-class News
+class Main extends Model
 {
-
-    /**
-     * Returns single news item with specified id
-     * @param integer $id
-     */
-    public static function getNewsItemById($id)
-    {
-        $id = intval($id);
-        $sql = "SELECT * FROM news WHERE id=:id";
-        $result = $GLOBALS['DBH']->prepare($sql);
-        $result->bindParam(':id', $id, PDO::PARAM_STR);
-        $result->execute();
-        $result->setFetchMode(PDO::FETCH_ASSOC);
-
-        if ($result) {
-            return $result->fetch();
-        }
-    }
 
     /**
      * Returns an array of news items
      */
-    public static function getNewsList()
+    public function get_data()
     {
         $news_list = array();
         $sql = "SELECT * FROM news";

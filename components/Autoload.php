@@ -5,7 +5,8 @@ function __autoload($class_name)
     $directories = array(
         '/models/',
         '/components/',
-        '/controllers/'
+        '/controllers/',
+        '/core/'
     );
 
     foreach ($directories as $path) {

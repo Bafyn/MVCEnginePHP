@@ -1,11 +1,16 @@
 <?php
 
-class ErrorController
+class ErrorController extends Controller
 {
 
-    public function action404()
+    function __construct()
     {
-        require_once(ROOT . '/views/errors/404.php');
+        $this->view = new View();
+    }
+
+    public function action_index()
+    {
+        $this->view->generate('errors/404.php');
         return true;
     }
 

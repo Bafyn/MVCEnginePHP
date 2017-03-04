@@ -13,19 +13,19 @@ class Router
     {
         $routesPath = ROOT . '\config\routes.php';
         $this->routes = include($routesPath);
-        $this->uri = $this->getURI();
-        $this->segments = $this->getSegments($this->uri);
-        $this->getControllerAndAction($this->segments['address']);
+        $this->uri = $this->get_uri();
+        $this->segments = $this->get_segments($this->uri);
+        $this->get_controller_and_action($this->segments['address']);
     }
 
-    private function getURI()
+    private function get_uri()
     {
         if (!empty($_SERVER['REQUEST_URI'])) {
             return trim($_SERVER['REQUEST_URI'], '/');
         }
     }
 
-    private function getSegments($uri)
+    private function get_segments($uri)
     {
         $segments = array(
             'params' => array(
@@ -51,7 +51,6 @@ class Router
             $segments['params']['get']['count'] = count($segments['params']['get']);
             //$segments['params']['get']['param_string'] = $params_string;
         }
-        echo 'params: ' . $params_string . '<br/>';
         $segments['params']['post'] = $_POST;
         $segments['params']['post']['count'] = count($segments['params']['post']);
         $segments['params']['files'] = $_FILES;
@@ -59,46 +58,39 @@ class Router
         return $segments;
     }
 
-    private function getControllerAndAction($address)
+    private function get_controller_and_action($address)
     {
         $controller_name = 'ErrorController';
-        $action_name = 'action404';
+        $action_name = 'action_index';
 
         if (empty($address)) {
-            echo 'empty<br/>';
-            $controller_name = 'NewsController';
-            $action_name = 'actionIndex';
+            $controller_name = 'MainController';
+            $action_name = 'action_index';
         } else {
-            echo 'not empty<br/>';
             $address_array = explode('/', $address);
             $num_of_parts = count($address_array);
 
             if ($num_of_parts == 1) {
-                echo 'num 1<br/>';
-                if ($this->isActionFounded($address_array[0], 'index')) {
+                if ($this->is_action_found($address_array[0], 'index')) {
                     $controller_name = ucfirst($address_array[0]) . 'Controller';
-                    $action_name = 'actionIndex';
+                    $action_name = 'action_index';
                 }
             }
 
             if ($num_of_parts == 2) {
-                echo 'num 2<br/>';
-                if ($this->isActionFounded($address_array[0], $address_array[1])) {
+                if ($this->is_action_found($address_array[0], $address_array[1])) {
                     $controller_name = ucfirst($address_array[0]) . 'Controller';
-                    $action_name = 'action' . ucfirst($address_array[1]);
+                    $action_name = 'action_' . $address_array[1];
                 }
             }
         }
 
-        echo 'action: ' . $action_name . '<br/>';
-        echo 'controller: ' . $controller_name . '<br/>';
-        echo 'address: ' . $this->segments['address'] . '<br/><br/>';
         $this->controller = $controller_name;
         $this->action = $action_name;
         return TRUE;
     }
 
-    public static function headerLocation($location = '/')
+    public static function header_location($location = '/')
     {
         header("Location: $location");
     }
@@ -106,27 +98,27 @@ class Router
     public function error404()
     {
         $controller_object = new ErrorController();
-        $controller_object->action404();
+        $controller_object->action_index();
     }
 
-    private function isControllerFounded($controller_name)
+    private function is_controller_found($controller_name)
     {
         $controller_file = ROOT . '/controllers/' . $controller_name . '.php';
         return file_exists($controller_file);
     }
 
-    private function isActionFounded($controller_name, $action_name)
+    private function is_action_found($controller_name, $action_name)
     {
         $controller_name = ucfirst($controller_name) . 'Controller';
-        $action_name = 'action' . ucfirst($action_name);
-        if ($this->isControllerFounded($controller_name)) {
+        $action_name = 'action_' . $action_name;
+        if ($this->is_controller_found($controller_name)) {
             return method_exists($controller_name, $action_name);
         } else {
             return false;
         }
     }
 
-    public function Run()
+    public function run()
     {
         // Создать объект, вызвать метод (т.е. action)
         $controller_object = new $this->controller();
@@ -137,7 +129,6 @@ class Router
         $result = $controller_object->{$this->action}($parameters_array);
 
         if (!$result) {
-            echo 'No result<br/>';
             $this->error404();
         }
     }
