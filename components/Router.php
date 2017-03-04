@@ -6,6 +6,8 @@ class Router
     private $routes;
     private $uri;
     private $segments;
+    private $controller;
+    private $action;
 
     public function __construct()
     {
@@ -13,41 +15,13 @@ class Router
         $this->routes = include($routesPath);
         $this->uri = $this->getURI();
         $this->segments = $this->getSegments($this->uri);
+        $this->getControllerAndAction($this->segments['address']);
     }
 
     private function getURI()
     {
         if (!empty($_SERVER['REQUEST_URI'])) {
             return trim($_SERVER['REQUEST_URI'], '/');
-        }
-    }
-
-    public static function headerLocation($location = '/')
-    {
-        header("Location: $location");
-    }
-
-    public function error404()
-    {
-        require_once(ROOT . '/controllers/ErrorController.php');
-        $controller_object = new ErrorController();
-        $controller_object->action404();
-    }
-
-    private function isControllerFounded($controller_name)
-    {
-        $controller_file = ROOT . '/controllers/' . $controller_name . '.php';
-        return file_exists($controller_file);
-    }
-
-    private function isActionFounded($controller_name, $action_name)
-    {
-        //$controller_name = ucfirst($controller_name) . 'Controller';
-        //$action_name = 'action' . ucfirst($action_name);
-        if ($this->isControllerFounded($controller_name)) {
-            return method_exists($controller_name, $action_name);
-        } else {
-            return false;
         }
     }
 
@@ -77,6 +51,7 @@ class Router
             $segments['params']['get']['count'] = count($segments['params']['get']);
             //$segments['params']['get']['param_string'] = $params_string;
         }
+        echo 'params: ' . $params_string . '<br/>';
         $segments['params']['post'] = $_POST;
         $segments['params']['post']['count'] = count($segments['params']['post']);
         $segments['params']['files'] = $_FILES;
@@ -84,53 +59,85 @@ class Router
         return $segments;
     }
 
-    public function Run()
+    private function getControllerAndAction($address)
     {
-        // Получить строку запроса
-        $uri = $this->getURI();
-        $is_correct_uri = FALSE;
-        // Проверить наличие такого запроса в routes.php
-        foreach ($this->routes as $uriPattern => $path) {
-            // Сравниваем $uriPattern и $uri
-            if (preg_match("~$uriPattern~", $uri)) {
-                // Получаем внутренний путь из внешнего согласно правилу
-                $internalRoute = preg_replace("~$uriPattern~", $path, $uri);
-                echo 'internal route: ';
-                print_r($internalRoute);
-                echo '<br/>';
+        $controller_name = 'ErrorController';
+        $action_name = 'action404';
 
-                // Если есть совпадение, определить какой контроллер и action обрабатывают запрос
-                $num_of_parts = count($segments);
-                $controller_name = array_shift($segments) . 'Controller';
-                $controller_name = ucfirst($controller_name);
-                $action_name = "action" . ucfirst(array_shift($segments));
-                // Получить оставшиеся параметры
-                $parameters = $segments;
-                echo 'parameters: ';
-                print_r($parameters);
-                echo '<br/>Controller name: ' . $controller_name . '<br/>';
-                echo 'Action name: ' . $action_name . '<br/><br/><br/>';
-                // Подключить файл класса-контроллера
-                if (!$this->isActionFounded($controller_name, $action_name)) {
-                    $this->error404();
-                    break;
+        if (empty($address)) {
+            echo 'empty<br/>';
+            $controller_name = 'NewsController';
+            $action_name = 'actionIndex';
+        } else {
+            echo 'not empty<br/>';
+            $address_array = explode('/', $address);
+            $num_of_parts = count($address_array);
+
+            if ($num_of_parts == 1) {
+                echo 'num 1<br/>';
+                if ($this->isActionFounded($address_array[0], 'index')) {
+                    $controller_name = ucfirst($address_array[0]) . 'Controller';
+                    $action_name = 'actionIndex';
                 }
+            }
 
-                // Создать объект, вызвать метод (т.е. action)
-                $controller_object = new $controller_name;
-
-                $result = $controller_object->$action_name($parameters);
-
-                if ($result != NULL) {
-                    $is_correct_uri = TRUE;
-                    break;
+            if ($num_of_parts == 2) {
+                echo 'num 2<br/>';
+                if ($this->isActionFounded($address_array[0], $address_array[1])) {
+                    $controller_name = ucfirst($address_array[0]) . 'Controller';
+                    $action_name = 'action' . ucfirst($address_array[1]);
                 }
-
-//                $result = call_user_func_array(array($controllerObject, $actionName), $parameters);
             }
         }
 
-        if (!$is_correct_uri) {
+        echo 'action: ' . $action_name . '<br/>';
+        echo 'controller: ' . $controller_name . '<br/>';
+        echo 'address: ' . $this->segments['address'] . '<br/><br/>';
+        $this->controller = $controller_name;
+        $this->action = $action_name;
+        return TRUE;
+    }
+
+    public static function headerLocation($location = '/')
+    {
+        header("Location: $location");
+    }
+
+    public function error404()
+    {
+        $controller_object = new ErrorController();
+        $controller_object->action404();
+    }
+
+    private function isControllerFounded($controller_name)
+    {
+        $controller_file = ROOT . '/controllers/' . $controller_name . '.php';
+        return file_exists($controller_file);
+    }
+
+    private function isActionFounded($controller_name, $action_name)
+    {
+        $controller_name = ucfirst($controller_name) . 'Controller';
+        $action_name = 'action' . ucfirst($action_name);
+        if ($this->isControllerFounded($controller_name)) {
+            return method_exists($controller_name, $action_name);
+        } else {
+            return false;
+        }
+    }
+
+    public function Run()
+    {
+        // Создать объект, вызвать метод (т.е. action)
+        $controller_object = new $this->controller();
+        $parameters_array = array(
+            'get' => $this->segments['params']['get'],
+            'post' => $this->segments['params']['post'],
+            'files' => $this->segments['params']['files']);
+        $result = $controller_object->{$this->action}($parameters_array);
+
+        if (!$result) {
+            echo 'No result<br/>';
             $this->error404();
         }
     }
