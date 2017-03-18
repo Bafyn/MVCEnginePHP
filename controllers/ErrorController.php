@@ -11,7 +11,8 @@ class ErrorController extends Controller
     public function action_index()
     {
         $this->view->generate('errors/404.php');
-        return true;
+        
+        return TRUE;
     }
 
 }

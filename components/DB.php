@@ -5,7 +5,7 @@ class DB
 
     /**
      * 
-     * @return \PDO object for connection with DB
+     * @return PDO object for connection with DB
      */
     public static function getConnection()
     {

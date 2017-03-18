@@ -3,21 +3,25 @@
 class Router
 {
 
-    private $routes;
     private $uri;
-    private $segments;
+    private $address;
+    //private $segments;
     private $controller;
     private $action;
 
     public function __construct()
     {
-        $routesPath = ROOT . '\config\routes.php';
-        $this->routes = include($routesPath);
         $this->uri = $this->get_uri();
-        $this->segments = $this->get_segments($this->uri);
-        $this->get_controller_and_action($this->segments['address']);
+        $this->address = $this->get_address($this->uri);
+        $this->get_controller_and_action($this->address);
     }
 
+    /**
+     * 
+     * Returns uri of the request with parematers
+     * 
+     * @return string
+     */
     private function get_uri()
     {
         if (!empty($_SERVER['REQUEST_URI'])) {
@@ -25,39 +29,30 @@ class Router
         }
     }
 
-    private function get_segments($uri)
+    /**
+     * 
+     * Returns uri of the request without parematers
+     * 
+     * @param string  $uri
+     * @return string
+     */
+    private function get_address($uri)
     {
-        $segments = array(
-            'params' => array(
-                'get' => array(),
-                'post' => array(),
-                'files' => array()
-            ),
-            'address' => '',
-        );
+        $address = $uri;
 
-        $params_string = '';
         if (($pos = strpos($uri, "?")) !== false) {
-            $segments['address'] = trim(substr($uri, 0, $pos));
-            $params_string = substr($uri, $pos);
-            $params_string = str_ireplace(array('?', '/', '\\', '\'', '"', '~', '*'), '', trim($params_string));
-            $params_string = trim($params_string, '&');
-        } else {
-            $segments['address'] = $uri;
+            $address = trim(substr($uri, 0, $pos));
         }
 
-        if (!empty($params_string)) {
-            parse_str($params_string, $segments['params']['get']);
-            $segments['params']['get']['count'] = count($segments['params']['get']);
-            //$segments['params']['get']['param_string'] = $params_string;
-        }
-        $segments['params']['post'] = $_POST;
-        $segments['params']['post']['count'] = count($segments['params']['post']);
-        $segments['params']['files'] = $_FILES;
-
-        return $segments;
+        return $address;
     }
 
+    /**
+     * 
+     * Returns name of the controller and action method
+     * 
+     * @param string $address
+     */
     private function get_controller_and_action($address)
     {
         $controller_name = 'ErrorController';
@@ -65,7 +60,6 @@ class Router
 
         if (empty($address)) {
             $controller_name = 'MainController';
-            $action_name = 'action_index';
         } else {
             $address_array = explode('/', $address);
             $num_of_parts = count($address_array);
@@ -73,7 +67,6 @@ class Router
             if ($num_of_parts == 1) {
                 if ($this->is_action_found($address_array[0], 'index')) {
                     $controller_name = ucfirst($address_array[0]) . 'Controller';
-                    $action_name = 'action_index';
                 }
             }
 
@@ -87,26 +80,29 @@ class Router
 
         $this->controller = $controller_name;
         $this->action = $action_name;
-        return TRUE;
     }
 
-    public static function header_location($location = '/')
-    {
-        header("Location: $location");
-    }
-
-    public function error404()
-    {
-        $controller_object = new ErrorController();
-        $controller_object->action_index();
-    }
-
+    /**
+     * 
+     * Checks if controller exists
+     * 
+     * @param string $controller_name
+     * @return bool
+     */
     private function is_controller_found($controller_name)
     {
         $controller_file = ROOT . '/controllers/' . $controller_name . '.php';
         return file_exists($controller_file);
     }
 
+    /**
+     * 
+     * Checks if action method exists
+     * 
+     * @param string $controller_name
+     * @param string $action_name
+     * @return boolean
+     */
     private function is_action_found($controller_name, $action_name)
     {
         $controller_name = ucfirst($controller_name) . 'Controller';
@@ -118,15 +114,35 @@ class Router
         }
     }
 
+    /**
+     * 
+     * Changes location of the page
+     * 
+     * @param string $location
+     */
+    public static function header_location($location = '/')
+    {
+        header("Location: $location");
+    }
+
+    /**
+     * 
+     *  Invoke error
+     */
+    public function error404()
+    {
+        $controller_object = new ErrorController();
+        $controller_object->action_index();
+    }
+
+    /**
+     * 
+     * Starts the router
+     */
     public function run()
     {
-        // Создать объект, вызвать метод (т.е. action)
         $controller_object = new $this->controller();
-        $parameters_array = array(
-            'get' => $this->segments['params']['get'],
-            'post' => $this->segments['params']['post'],
-            'files' => $this->segments['params']['files']);
-        $result = $controller_object->{$this->action}($parameters_array);
+        $result = $controller_object->{$this->action}();
 
         if (!$result) {
             $this->error404();
